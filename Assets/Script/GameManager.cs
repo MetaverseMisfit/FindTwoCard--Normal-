@@ -4,6 +4,8 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System;
+using UnityEngine.Networking;
 
 
 public class GameManager : MonoBehaviour
@@ -39,6 +41,11 @@ public class GameManager : MonoBehaviour
     private float currentTime;
     private int totalMatches = 10;
     private int matchesFound = 0;
+
+    [SerializeField]
+    private string googleFormLink = "https://docs.google.com/forms/d/1kayqeWWGIZNLung4Y7HYHnGsLLk2fIxtwfeVIizjPmo/formResponse";
+
+
 
     void Awake()
     {
@@ -158,6 +165,7 @@ public class GameManager : MonoBehaviour
             if (success)
             {
                 gameOverText.SetText("Great Job");
+                SendLog(currentTime.ToString("0.00"));
             }
             else
             {
@@ -170,12 +178,47 @@ public class GameManager : MonoBehaviour
     }
 
     void ShowGameOverPanel()
-    {
+    {   
         gameOverPanel.SetActive(true);
     }
 
     public void Restart()
     {
+        StopCoroutine("Post");
         SceneManager.LoadScene("SampleScene");
     }
+
+    public void OnApplicationQuit()
+    {
+        SendLog(currentTime.ToString("0.00"));
+    }
+
+    public void SendLog(string clearTime) {
+        StartCoroutine(Post(Environment.UserName, "EASY", clearTime));
+    }
+
+    IEnumerator Post(string name, string gameversion, string playtime) {
+        Debug.Log("[LOGGER] Post Called!");
+        WWWForm form = new WWWForm();
+        form.AddField("entry.1601783318", name);
+        form.AddField("entry.1444102313", gameversion);
+        form.AddField("entry.1316183563", playtime);
+
+        UnityWebRequest www = UnityWebRequest.Post(googleFormLink, form);
+
+        www.SendWebRequest();
+
+        if (www.isNetworkError)
+        {
+            Debug.Log("[LOGGER] Failed form upload:" + www.error);
+        }
+        else
+        {
+            Debug.Log("[LOGGER] Uploaded form!");
+        }
+
+        yield return null;
+    }
+
+
 }
