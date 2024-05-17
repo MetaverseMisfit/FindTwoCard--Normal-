@@ -41,6 +41,7 @@ public class GameManager : MonoBehaviour
     private float currentTime;
     private int totalMatches = 10;
     private int matchesFound = 0;
+    private float totalPlayTime = 0.0f;
 
     [SerializeField]
     private string googleFormLink = "https://docs.google.com/forms/d/1kayqeWWGIZNLung4Y7HYHnGsLLk2fIxtwfeVIizjPmo/formResponse";
@@ -49,6 +50,7 @@ public class GameManager : MonoBehaviour
 
     void Awake()
     {
+        Screen.SetResolution(450, 800, false);
         if (instance == null)
         {
             instance = this;
@@ -62,6 +64,15 @@ public class GameManager : MonoBehaviour
 
         currentTime = timeLimit;
         SetCurrentTimeText();
+        StartCoroutine(CountUpTotalPlayTime());
+
+        if (PlayerPrefs.HasKey("totalPlayTime"))
+        {
+            totalPlayTime = PlayerPrefs.GetFloat("totalPlayTime");
+        }
+
+        Application.wantsToQuit += OnWantsToQuit;
+        StartCoroutine(GoogleFormConnectTest());
         StartCoroutine("FlipAllCardsRoutine");
     }
 
@@ -165,7 +176,6 @@ public class GameManager : MonoBehaviour
             if (success)
             {
                 gameOverText.SetText("Great Job");
-                //SendLog(currentTime.ToString("0.00"));
             }
             else
             {
@@ -184,13 +194,30 @@ public class GameManager : MonoBehaviour
 
     public void Restart()
     {
-        StopCoroutine("Post");
+        PlayerPrefs.SetFloat("totalPlayTime", totalPlayTime);
+        PlayerPrefs.Save();
         SceneManager.LoadScene("SampleScene");
     }
 
-    public void OnApplicationQuit()
+    IEnumerator CountUpTotalPlayTime()
     {
-        SendLog(currentTime.ToString("0.00"));
+        while (true) {
+            totalPlayTime += Time.deltaTime;
+            yield return null;
+        }
+    }
+
+    private bool OnWantsToQuit()
+    {
+        if (PlayerPrefs.HasKey("totalPlayTime"))
+            PlayerPrefs.DeleteKey("totalPlayTime");
+
+        Debug.Log("[LOGGER] OnWantsToQuit called: " + totalPlayTime.ToString());
+        if(totalPlayTime == 0.0f)
+            return true;
+        SendLog(totalPlayTime.ToString("0.00"));
+
+        return true;
     }
 
     public void SendLog(string clearTime) {
@@ -220,5 +247,21 @@ public class GameManager : MonoBehaviour
         yield return null;
     }
 
+    IEnumerator GoogleFormConnectTest()
+    {
+        UnityWebRequest request = UnityWebRequest.Get(googleFormLink);
+
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            Debug.Log("Successfully connected google form!");
+        }
+        else
+        {
+            Debug.Log("Failed to connect google form");
+            Application.Quit();            
+        }
+    }
 
 }
