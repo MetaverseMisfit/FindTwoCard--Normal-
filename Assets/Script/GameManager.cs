@@ -165,7 +165,7 @@ public class GameManager : MonoBehaviour
             if (success)
             {
                 gameOverText.SetText("Great Job");
-                SendLog(currentTime.ToString("0.00"));
+                //SendLog(currentTime.ToString("0.00"));
             }
             else
             {
