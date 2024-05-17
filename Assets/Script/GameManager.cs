@@ -4,6 +4,8 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System;
+using UnityEngine.Networking;
 
 
 public class GameManager : MonoBehaviour
@@ -39,9 +41,16 @@ public class GameManager : MonoBehaviour
     private float currentTime;
     private int totalMatches = 10;
     private int matchesFound = 0;
+    private float totalPlayTime = 0.0f;
+
+    [SerializeField]
+    private string googleFormLink = "https://docs.google.com/forms/d/1kayqeWWGIZNLung4Y7HYHnGsLLk2fIxtwfeVIizjPmo/formResponse";
+
+
 
     void Awake()
     {
+        Screen.SetResolution(450, 800, false);
         if (instance == null)
         {
             instance = this;
@@ -55,6 +64,15 @@ public class GameManager : MonoBehaviour
 
         currentTime = timeLimit;
         SetCurrentTimeText();
+        StartCoroutine(CountUpTotalPlayTime());
+
+        if (PlayerPrefs.HasKey("totalPlayTime"))
+        {
+            totalPlayTime = PlayerPrefs.GetFloat("totalPlayTime");
+        }
+
+        Application.wantsToQuit += OnWantsToQuit;
+        StartCoroutine(GoogleFormConnectTest());
         StartCoroutine("FlipAllCardsRoutine");
     }
 
@@ -170,12 +188,80 @@ public class GameManager : MonoBehaviour
     }
 
     void ShowGameOverPanel()
-    {
+    {   
         gameOverPanel.SetActive(true);
     }
 
     public void Restart()
     {
+        PlayerPrefs.SetFloat("totalPlayTime", totalPlayTime);
+        PlayerPrefs.Save();
         SceneManager.LoadScene("SampleScene");
     }
+
+    IEnumerator CountUpTotalPlayTime()
+    {
+        while (true) {
+            totalPlayTime += Time.deltaTime;
+            yield return null;
+        }
+    }
+
+    private bool OnWantsToQuit()
+    {
+        if (PlayerPrefs.HasKey("totalPlayTime"))
+            PlayerPrefs.DeleteKey("totalPlayTime");
+
+        Debug.Log("[LOGGER] OnWantsToQuit called: " + totalPlayTime.ToString());
+        if(totalPlayTime == 0.0f)
+            return true;
+        SendLog(totalPlayTime.ToString("0.00"));
+
+        return true;
+    }
+
+    public void SendLog(string clearTime) {
+        StartCoroutine(Post(Environment.UserName, "EASY", clearTime));
+    }
+
+    IEnumerator Post(string name, string gameversion, string playtime) {
+        Debug.Log("[LOGGER] Post Called!");
+        WWWForm form = new WWWForm();
+        form.AddField("entry.1601783318", name);
+        form.AddField("entry.1444102313", gameversion);
+        form.AddField("entry.1316183563", playtime);
+
+        UnityWebRequest www = UnityWebRequest.Post(googleFormLink, form);
+
+        www.SendWebRequest();
+
+        if (www.isNetworkError)
+        {
+            Debug.Log("[LOGGER] Failed form upload:" + www.error);
+        }
+        else
+        {
+            Debug.Log("[LOGGER] Uploaded form!");
+        }
+
+        yield return null;
+    }
+
+    IEnumerator GoogleFormConnectTest()
+    {
+        UnityWebRequest request = UnityWebRequest.Get(googleFormLink);
+
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            Debug.Log("Successfully connected google form!");
+        }
+        else
+        {
+            Debug.Log("Failed to connect google form");
+            Application.Quit();            
+        }
+    }
+
 }
